@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minimal Todo</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+body {
+    background: #0f1115;
+    color: white;
+    min-height: 100vh;
+}
+
+/* Container */
+.container {
+    max-width: 500px;
+    margin: auto;
+    padding: 20px 16px 100px;
+}
+
+/* Todo item */
+.todo {
+    background: #171a21;
+    padding: 16px;
+    border-radius: 14px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    touch-action: pan-y;
+}
+
+.todo.done .text {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
+
+/* Left text */
+.text {
+    flex: 1;
+    font-size: 16px;
+    word-break: break-word;
+}
+
+/* Right controls */
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Circle check */
+.check {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid #888;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.todo.done .check {
+    background: #4caf50;
+    border-color: #4caf50;
+}
+
+.check::after {
+    content: "✓";
+    font-size: 14px;
+    opacity: 0;
+}
+
+.todo.done .check::after {
+    opacity: 1;
+}
+
+/* Delete button */
+.delete {
+    cursor: pointer;
+    opacity: 0.6;
+    font-size: 18px;
+}
+
+.delete:hover {
+    opacity: 1;
+}
+
+/* Floating add button */
+.add-btn {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #4caf50;
+    color: white;
+    font-size: 32px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+/* Input modal */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-box {
+    background: #171a21;
+    padding: 24px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 400px;
+}
+
+.modal input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    outline: none;
+    background: #0f1115;
+    color: white;
+    font-size: 16px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container" id="list"></div>
+
+<button class="add-btn" id="addBtn">+</button>
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <input id="todoInput" placeholder="New to-do..." />
+  </div>
+</div>
+
+<script>
+let todos = JSON.parse(localStorage.getItem("todos") || "[]");
+
+const list = document.getElementById("list");
+const modal = document.getElementById("modal");
+const input = document.getElementById("todoInput");
+
+function save() {
+    localStorage.setItem("todos", JSON.stringify(todos));
+}
+
+function render() {
+    list.innerHTML = "";
+
+    todos.forEach((todo, index) => {
+        const el = document.createElement("div");
+        el.className = "todo" + (todo.done ? " done" : "");
+
+        let startX = 0;
+
+        // Swipe detection
+        el.addEventListener("touchstart", e => {
+            startX = e.touches[0].clientX;
+        });
+
+        el.addEventListener("touchmove", e => {
+            let diff = e.touches[0].clientX - startX;
+            if (diff < 0) {
+                el.style.transform = `translateX(${diff}px)`;
+            }
+        });
+
+        el.addEventListener("touchend", e => {
+            let diff = e.changedTouches[0].clientX - startX;
+            if (diff < -120) {
+                todos.splice(index, 1);
+                save();
+                render();
+            } else {
+                el.style.transform = "";
+            }
+        });
+
+        el.innerHTML = `
+            <div class="text">${todo.text}</div>
+            <div class="actions">
+                <div class="check"></div>
+                <div class="delete">✕</div>
+            </div>
+        `;
+
+        // Check toggle
+        el.querySelector(".check").onclick = () => {
+            todo.done = !todo.done;
+            save();
+            render();
+        };
+
+        // Delete button
+        el.querySelector(".delete").onclick = () => {
+            todos.splice(index, 1);
+            save();
+            render();
+        };
+
+        list.appendChild(el);
+    });
+}
+
+// Add button
+document.getElementById("addBtn").onclick = () => {
+    modal.classList.add("show");
+    input.focus();
+};
+
+// Submit with Enter
+input.addEventListener("keydown", e => {
+    if (e.key === "Enter" && input.value.trim()) {
+        todos.push({
+            text: input.value.trim(),
+            done: false
+        });
+        input.value = "";
+        modal.classList.remove("show");
+        save();
+        render();
+    }
+});
+
+// Close modal click outside
+modal.onclick = e => {
+    if (e.target === modal) {
+        modal.classList.remove("show");
+    }
+};
+
+render();
+</script>
+
+</body>
+</html>
